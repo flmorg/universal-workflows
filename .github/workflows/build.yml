@@ -7,19 +7,22 @@ on:
       dockerRepository: # docker image repository
         required: true
         type: string
-      repository: # github.repository
-        required: true
-        type: string
-      githubSha: # github.sha
-        required: true
-        type: string
-      githubRef: # github.ref
-        required: true
-        type: string
-      githubHeadRef: #github.head_ref for PRs
-        required: true
-        type: string
-      pullRequestNumber:
+      # repository: # github.repository
+      #   required: true
+      #   type: string
+      # githubSha: # github.sha
+      #   required: true
+      #   type: string
+      # githubRef: # github.ref
+      #   required: true
+      #   type: string
+      # githubHeadRef: # github.head_ref for PRs
+      #   required: true
+      #   type: string
+      # pullRequestNumber: # github.event.pull_request.number
+      #   required: true
+      #   type: string
+      githubContext: # github context in JSON format
         required: true
         type: string
     secrets:
@@ -39,10 +42,18 @@ jobs:
       branch: ${{ steps.initialize.outputs.branch }}
     steps:
     -
-      name: Initialize
+      name: Set github context
+      run: |
+        echo 'githubRepository=${{ fromJSON(inputs.githubContext).repository }}' >> $GITHUB_ENV
+        echo 'githubSha=${{ fromJSON(inputs.githubContext).sha }}' >> $GITHUB_ENV
+        echo 'githubRef=${{ fromJSON(inputs.githubContext).ref }}' >> $GITHUB_ENV
+        echo 'githubHeadRef=${{ fromJSON(inputs.githubContext).head_ref }}' >> $GITHUB_ENV
+        echo 'pullRequestNumber=${{ fromJSON(inputs.githubContext).event.pull_request.number }}' >> $GITHUB_ENV
+    -
+      name: Initialize build info
       id: initialize
       run: |
-        githubHeadRef=${{ inputs.githubHeadRef }}
+        githubHeadRef=${{ env.githubHeadRef }}
         dockerTag=""
 
         # enable case insensitive regex
@@ -53,19 +64,19 @@ jobs:
         if [[ $githubHeadRef == "" ]];
         then
           # this run is for the main branch
-          githubRef=${{ inputs.githubRef }}
+          githubRef=${{ env.githubRef }}
           dockerTag="latest"
         else
           # this run is for a PR
           githubRef=$githubHeadRef
-          dockerTag="pull-${{ inputs.pullRequestNumber }}"
+          dockerTag="pull-${{ env.pullRequestNumber }}"
         fi
 
         # get branch name from ref
         branch=${githubRef##*/}
 
-        echo "::set-output name=dockerTag::$dockerTag"
-        echo "::set-output name=branch::$branch"
+        echo "dockerTag=$dockerTag" >> $GITHUB_OUTPUT
+        echo "branch=$branch" >> $GITHUB_OUTPUT
   build_app:
     name: build app
     runs-on: ubuntu-latest
@@ -75,7 +86,7 @@ jobs:
         name: Checkout repository
         uses: actions/checkout@v3
         with:
-          repository: ${{ inputs.repository }}
+          repository: ${{ env.githubRepository }}
           ref: ${{ needs.initialize.outputs.branch }}
           token: ${{ secrets.PAT }}
       -
@@ -101,6 +112,6 @@ jobs:
           sudo docker buildx build . \
             --file Dockerfile \
             --platform linux/amd64,linux/arm64 \
-            --label commit=sha-${{ inputs.githubSha }} \
+            --label commit=sha-${{ env.githubSha }} \
             -t ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.dockerTag }} \
             --push
