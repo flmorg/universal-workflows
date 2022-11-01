@@ -3,28 +3,23 @@ name: build
 on:
   workflow_call:
     inputs:
-      # TODO check if the entire github context can be sent
       dockerRepository: # docker image repository
         required: true
         type: string
-      # repository: # github.repository
-      #   required: true
-      #   type: string
-      # githubSha: # github.sha
-      #   required: true
-      #   type: string
-      # githubRef: # github.ref
-      #   required: true
-      #   type: string
-      # githubHeadRef: # github.head_ref for PRs
-      #   required: true
-      #   type: string
-      # pullRequestNumber: # github.event.pull_request.number
-      #   required: true
-      #   type: string
       githubContext: # github context in JSON format
         required: true
         type: string
+      appName: # todo set appname to default to something like presentation or whatever
+        required: true
+        type: string
+      selfContained:
+        required: false
+        type: boolean
+        default: true
+      baseImage:
+        required: false
+        type: string
+        default: 7.0-alpine
     secrets:
       PAT: # github personal access token
         required: true
@@ -61,8 +56,7 @@ jobs:
         # mainPattern='refs\/heads\/(main)'
 
         # check if this is a PR or not
-        if [[ $githubHeadRef == "" ]];
-        then
+        if [[ $githubHeadRef == "" ]]; then
           # this run is for the main branch
           githubRef=${{ env.githubRef }}
           dockerTag="latest"
@@ -100,8 +94,41 @@ jobs:
         name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
       -
+        name: Create Dockerfile
+        working-directory: src
+        run: |
+          dockerfileText="FROM mcr.microsoft.com/dotnet/sdk:${{ inputs.baseImage }} AS build \n";
+          dockerfileText="${dockerfileText}WORKDIR /app \n"
+          dockerfileText="${dockerfileText}EXPOSE 80 \n\n"
+          dockerfileText="${dockerfileText}COPY . ./ \n\n"
+          dockerfileText="${dockerfileText}RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ \n"
+          dockerfileText="${dockerfileText}-c Release \ \n"
+          dockerfileText="${dockerfileText}-o /app/publish"
+          
+          if [ "${{ inputs.selfContained }}" = true ] ; then
+            dockerfileText="${dockerfileText} \ \n"
+            dockerfileText="${dockerfileText}--use-current-runtime \ \n"
+            dockerfileText="${dockerfileText}--self-contained \ \n"
+            dockerfileText="${dockerfileText}/p:PublishSingleFile=true \ \n"
+            dockerfileText="${dockerfileText}/p:PublishTrimmed=true \n\n"
+            dockerfileText="${dockerfileText}FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n\n"
+            entrypoint="ENTRYPOINT ./${{ inputs.appName }}"
+          else
+            dockerfileText="${dockerfileText}FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n\n"
+            entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.appName }}.dll\"]"
+          fi
+
+          dockerfileText="${dockerfileText}WORKDIR /app \n"
+          dockerfileText="${dockerfileText}COPY --from=build /app/publish . \n"
+          dockerfileText="${dockerfileText}${entrypoint}"
+          
+          echo -e "Dockerfile:"
+          echo -e $dockerfileText
+
+          echo -e $dockerfileText > Dockerfile
+      -
         name: Build & push docker image
-        timeout-minutes: 5
+        timeout-minutes: 10
         working-directory: src
         run: |
           echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
