@@ -9,9 +9,10 @@ on:
       githubContext: # github context in JSON format
         required: true
         type: string
-      appName: # todo set appname to default to something like presentation or whatever
+      appName:
         required: true
         type: string
+        default: Executable
       selfContained:
         required: false
         type: boolean
@@ -33,7 +34,8 @@ jobs:
     name: initialize
     runs-on: ubuntu-latest
     outputs:
-      dockerTag: ${{ steps.initialize.outputs.dockerTag }}
+      latestDockerTag: ${{ steps.initialize.outputs.latestDockerTag }}
+      commitDockerTag: ${{ steps.initialize.outputs.commitDockerTag }}
       branch: ${{ steps.initialize.outputs.branch }}
     steps:
     -
@@ -49,7 +51,8 @@ jobs:
       id: initialize
       run: |
         githubHeadRef=${{ env.githubHeadRef }}
-        dockerTag=""
+        latestDockerTag=""
+        commitDockerTag=""
 
         # enable case insensitive regex
         # shopt -s nocasematch
@@ -59,18 +62,22 @@ jobs:
         if [[ $githubHeadRef == "" ]]; then
           # this run is for the main branch
           githubRef=${{ env.githubRef }}
-          dockerTag="latest"
+          latestDockerTag="latest"
+          commitDockerTag=${{ env.githubSha }}
         else
           # this run is for a PR
           githubRef=$githubHeadRef
-          dockerTag="pull-${{ env.pullRequestNumber }}"
+          latestDockerTag="pull-${{ env.pullRequestNumber }}"
+          commitDockerTag="pull-${{ env.pullRequestNumber }}-${{ env.githubSha }}"
         fi
 
         # get branch name from ref
         branch=${githubRef##*/}
 
-        echo "dockerTag=$dockerTag" >> $GITHUB_OUTPUT
+        echo "latestDockerTag=$latestDockerTag" >> $GITHUB_OUTPUT
+        echo "commitDockerTag=$commitDockerTag" >> $GITHUB_OUTPUT
         echo "branch=$branch" >> $GITHUB_OUTPUT
+
   build_app:
     name: build app
     runs-on: ubuntu-latest
@@ -91,54 +98,88 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v2
       -
-        name: Available platforms
-        run: echo ${{ steps.buildx.outputs.platforms }}
-      -
         name: Create Dockerfile
-        working-directory: src
+        working-directory: code
         run: |
-          dockerfileText="FROM mcr.microsoft.com/dotnet/sdk:${{ inputs.baseImage }} AS build \n";
-          dockerfileText="${dockerfileText}WORKDIR /app \n"
-          dockerfileText="${dockerfileText}EXPOSE 80 \n\n"
-          dockerfileText="${dockerfileText}COPY . ./ \n\n"
-          dockerfileText="${dockerfileText}RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ \n"
-          dockerfileText="${dockerfileText}-c Release \ \n"
-          dockerfileText="${dockerfileText}-o /app/publish"
-          
+          touch Dockerfile
+
+          echo -e "FROM mcr.microsoft.com/dotnet/sdk:${{ inputs.baseImage }} AS build" >> Dockerfile
+          echo -e "WORKDIR /app" >> Dockerfile
+          echo -e "EXPOSE 80 \n" >> Dockerfile
+          echo -e "COPY . ./ \n" >> Dockerfile
+          # TODO uncomment
+          # echo -e "RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+          # echo -e "-c Release \ " >> Dockerfile
+          # echo -n "-o /app/publish" >> Dockerfile
+
           if [ "${{ inputs.selfContained }}" = true ] ; then
-            dockerfileText="${dockerfileText} \ \n"
-            dockerfileText="${dockerfileText}--use-current-runtime \ \n"
-            dockerfileText="${dockerfileText}--self-contained \ \n"
-            dockerfileText="${dockerfileText}/p:PublishSingleFile=true \ \n"
-            dockerfileText="${dockerfileText}/p:PublishTrimmed=true \n\n"
-            dockerfileText="${dockerfileText}FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n\n"
+            # TODO uncomment
+            # echo -e " \ " >> Dockerfile
+            # echo -e "--self-contained \ " >> Dockerfile
+            # echo -e "/p:PublishSingleFile=true \ " >> Dockerfile
+            # echo -e "/p:PublishTrimmed=true \n" >> Dockerfile
+
+            # TODO remove this workaround for arm64 after https://github.com/dotnet/installer/pull/14647 is closed
+            echo -e "ARG architecture=\$(dotnet --info | grep 'Architecture: arm64')" >> Dockerfile
+            echo -e "RUN if [[ -z '\$architecture' ]]; then \ " >> Dockerfile
+            echo -e "dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+            echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true --use-current-runtime; \ " >> Dockerfile
+            echo -e "else \ " >> Dockerfile
+            echo -e "dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+            echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true -r linux-musl-arm64; \ " >> Dockerfile
+            echo -e "fi \n" >> Dockerfile
+
+            echo -e "FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n" >> Dockerfile
             entrypoint="ENTRYPOINT ./${{ inputs.appName }}"
           else
-            dockerfileText="${dockerfileText}FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n\n"
+            # TODO remove
+            echo -e "RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+            echo -e "-c Release \ " >> Dockerfile
+            echo -n "-o /app/publish" >> Dockerfile
+
+            echo -e "" >> Dockerfile
+            echo -e "FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n" >> Dockerfile
             entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.appName }}.dll\"]"
           fi
 
-          dockerfileText="${dockerfileText}WORKDIR /app \n"
-          dockerfileText="${dockerfileText}COPY --from=build /app/publish . \n"
-          dockerfileText="${dockerfileText}${entrypoint}"
-          
-          echo -e "Dockerfile:"
-          echo -e $dockerfileText
+          echo -e "WORKDIR /app" >> Dockerfile
+          echo -e "COPY --from=build /app/publish ." >> Dockerfile
+          echo -e "${entrypoint}" >> Dockerfile
 
-          echo -e $dockerfileText > Dockerfile
+          cat Dockerfile
       -
-        name: Build & push docker image
+        name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      -
+        name: Build and push docker image
         timeout-minutes: 10
-        working-directory: src
-        run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{ github.workspace }}/code
+          file: ${{ github.workspace }}/code/Dockerfile
+          labels: |
+            commit=sha-${{ env.githubSha }}
+          platforms: |
+            linux/amd64
+            linux/arm64
+          push: true
+          tags: |
+            ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.latestDockerTag }}
+            ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.commitDockerTag }}
+      # -
+      #   name: Build & push docker image
+      #   timeout-minutes: 10
+      #   working-directory: src
+      #   run: |
+      #     sudo docker buildx create --name builder
+      #     sudo docker buildx use builder
 
-          sudo docker buildx create --name builder
-          sudo docker buildx use builder
-
-          sudo docker buildx build . \
-            --file Dockerfile \
-            --platform linux/amd64,linux/arm64 \
-            --label commit=sha-${{ env.githubSha }} \
-            -t ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.dockerTag }} \
-            --push
+      #     sudo docker buildx build . \
+      #       --file Dockerfile \
+      #       --platform linux/amd64,linux/arm64 \
+      #       --label commit=sha-${{ env.githubSha }} \
+      #       -t ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.dockerTag }} \
+      #       --push
