@@ -79,7 +79,7 @@ jobs:
         echo "branch=$branch" >> $GITHUB_OUTPUT
 
   build_app:
-    name: build app
+    name: Build app
     runs-on: ubuntu-latest
     needs: [ initialize ]
     steps:
@@ -108,34 +108,34 @@ jobs:
           echo -e "EXPOSE 80 \n" >> Dockerfile
           echo -e "COPY . ./ \n" >> Dockerfile
           # TODO uncomment
-          # echo -e "RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
-          # echo -e "-c Release \ " >> Dockerfile
-          # echo -n "-o /app/publish" >> Dockerfile
+          echo -e "RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+          echo -e "-c Release \ " >> Dockerfile
+          echo -n "-o /app/publish" >> Dockerfile
 
           if [ "${{ inputs.selfContained }}" = true ] ; then
-            # TODO uncomment
-            # echo -e " \ " >> Dockerfile
-            # echo -e "--self-contained \ " >> Dockerfile
-            # echo -e "/p:PublishSingleFile=true \ " >> Dockerfile
-            # echo -e "/p:PublishTrimmed=true \n" >> Dockerfile
+            TODO uncomment
+            echo -e " \ " >> Dockerfile
+            echo -e "--self-contained \ " >> Dockerfile
+            echo -e "/p:PublishSingleFile=true \ " >> Dockerfile
+            echo -e "/p:PublishTrimmed=true \n" >> Dockerfile
 
             # TODO remove this workaround for arm64 after https://github.com/dotnet/installer/pull/14647 is closed
-            echo -e "ARG architecture=\$(dotnet --info | grep 'Architecture: arm64')" >> Dockerfile
-            echo -e "RUN if [[ -z '\$architecture' ]]; then \ " >> Dockerfile
-            echo -e "dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
-            echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true --use-current-runtime; \ " >> Dockerfile
-            echo -e "else \ " >> Dockerfile
-            echo -e "dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
-            echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true -r linux-musl-arm64; \ " >> Dockerfile
-            echo -e "fi \n" >> Dockerfile
+            # echo -e "ARG architecture=\$(dotnet --info | grep 'Architecture: arm64')" >> Dockerfile
+            # echo -e "RUN if [[ -z '\$architecture' ]]; then \ " >> Dockerfile
+            # echo -e "dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+            # echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true --use-current-runtime; \ " >> Dockerfile
+            # echo -e "else \ " >> Dockerfile
+            # echo -e "dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+            # echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true -r linux-musl-arm64; \ " >> Dockerfile
+            # echo -e "fi \n" >> Dockerfile
 
             echo -e "FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n" >> Dockerfile
             entrypoint="ENTRYPOINT ./${{ inputs.appName }}"
           else
             # TODO remove
-            echo -e "RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
-            echo -e "-c Release \ " >> Dockerfile
-            echo -n "-o /app/publish" >> Dockerfile
+            # echo -e "RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+            # echo -e "-c Release \ " >> Dockerfile
+            # echo -n "-o /app/publish" >> Dockerfile
 
             echo -e "" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n" >> Dockerfile
@@ -169,17 +169,3 @@ jobs:
           tags: |
             ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.latestDockerTag }}
             ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.commitDockerTag }}
-      # -
-      #   name: Build & push docker image
-      #   timeout-minutes: 10
-      #   working-directory: src
-      #   run: |
-      #     sudo docker buildx create --name builder
-      #     sudo docker buildx use builder
-
-      #     sudo docker buildx build . \
-      #       --file Dockerfile \
-      #       --platform linux/amd64,linux/arm64 \
-      #       --label commit=sha-${{ env.githubSha }} \
-      #       -t ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.dockerTag }} \
-      #       --push
