@@ -107,36 +107,19 @@ jobs:
           echo -e "WORKDIR /app" >> Dockerfile
           echo -e "EXPOSE 80 \n" >> Dockerfile
           echo -e "COPY . ./ \n" >> Dockerfile
-          # TODO uncomment
           echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
           echo -e "-c Release \ " >> Dockerfile
           echo -n "-o /app/publish" >> Dockerfile
 
           if [ "${{ inputs.selfContained }}" = true ] ; then
-            # TODO uncomment
             echo -e " \ " >> Dockerfile
             echo -e "--self-contained \ " >> Dockerfile
+            echo -e "--use-current-runtime \ " >> Dockerfile
             echo -e "/p:PublishSingleFile=true \ " >> Dockerfile
             echo -e "/p:PublishTrimmed=true \n" >> Dockerfile
-
-            # TODO remove this workaround for arm64 after https://github.com/dotnet/installer/pull/14647 is closed
-            # echo -e "ARG architecture=\$(dotnet --info | grep 'Architecture: arm64')" >> Dockerfile
-            # echo -e "RUN if [[ -z '\$architecture' ]]; then \ " >> Dockerfile
-            # echo -e "dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
-            # echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true --use-current-runtime; \ " >> Dockerfile
-            # echo -e "else \ " >> Dockerfile
-            # echo -e "dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
-            # echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true -r linux-musl-arm64; \ " >> Dockerfile
-            # echo -e "fi \n" >> Dockerfile
-
             echo -e "FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n" >> Dockerfile
             entrypoint="ENTRYPOINT ./${{ inputs.executableName }}"
           else
-            # TODO remove
-            # echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
-            # echo -e "-c Release \ " >> Dockerfile
-            # echo -n "-o /app/publish" >> Dockerfile
-
             echo -e "" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n" >> Dockerfile
             entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.executableName }}.dll\"]"
@@ -155,7 +138,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       -
         name: Build and push docker image
-        timeout-minutes: 10
+        timeout-minutes: 15
         uses: docker/build-push-action@v3
         with:
           context: ${{ github.workspace }}/code
