@@ -1,0 +1,56 @@
+name: Chart install
+
+on:
+  workflow_call:
+    inputs:
+      githubContext: # github context in JSON format
+        required: true
+        type: string
+    secrets:
+      PAT:
+        required: true
+      KUBECONFIG:
+        required: true
+
+jobs:
+  initialize:
+    name: Initialize
+    runs-on: ubuntu-latest
+    outputs:
+      githubRepository: ${{ steps.initialize.outputs.repository }}
+      githubRepositoryName: ${{ steps.initialize.outputs.repositoryName }}
+      githubSha: ${{ steps.initialize.outputs.githubSha }}
+    steps:
+      -
+        name: Get repository name
+        id: initialize
+        run: |
+          echo 'githubRepository=${{ fromJSON(inputs.githubContext).repository }}' >> $GITHUB_OUTPUT
+          echo 'githubRepositoryName=$(basename ${{ fromJSON(inputs.githubContext).repository }})' >> $GITHUB_OUTPUT
+          echo 'githubSha=${{ fromJSON(inputs.githubContext).sha }}' >> $GITHUB_OUTPUT
+
+  install_chart:
+    name: Install chart
+    runs-on: ubuntu-latest
+    needs: [ initialize ]
+    steps:
+      -
+        name: Checkout target repository
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ needs.initialize.outputs.githubRepository }}
+          token: ${{ secrets.PAT }}
+      - 
+        name: Deploy
+        uses: 'deliverybot/helm@v1'
+        with:
+          release: ${{ needs.initialize.outputs.githubRepositoryName }}
+          namespace: production
+          version: ${{ github}}
+          chart: chartmuseum/universal-chart
+          chart-version: 1.0.0
+          token: ${{ github.token }}
+          repo: https://charts.pricegrabber.xyz
+          repo-alias: chartmuseum
+        env:
+          KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'

@@ -1,4 +1,4 @@
-name: build
+name: Dotnet build app
 
 on:
   workflow_call:
@@ -9,7 +9,7 @@ on:
       githubContext: # github context in JSON format
         required: true
         type: string
-      appName:
+      executableName:
         required: true
         type: string
         default: Executable
@@ -31,52 +31,52 @@ on:
 
 jobs:
   initialize:
-    name: initialize
+    name: Initialize
     runs-on: ubuntu-latest
     outputs:
       latestDockerTag: ${{ steps.initialize.outputs.latestDockerTag }}
       commitDockerTag: ${{ steps.initialize.outputs.commitDockerTag }}
       branch: ${{ steps.initialize.outputs.branch }}
     steps:
-    -
-      name: Set github context
-      run: |
-        echo 'githubRepository=${{ fromJSON(inputs.githubContext).repository }}' >> $GITHUB_ENV
-        echo 'githubSha=${{ fromJSON(inputs.githubContext).sha }}' >> $GITHUB_ENV
-        echo 'githubRef=${{ fromJSON(inputs.githubContext).ref }}' >> $GITHUB_ENV
-        echo 'githubHeadRef=${{ fromJSON(inputs.githubContext).head_ref }}' >> $GITHUB_ENV
-        echo 'pullRequestNumber=${{ fromJSON(inputs.githubContext).event.pull_request.number }}' >> $GITHUB_ENV
-    -
-      name: Initialize build info
-      id: initialize
-      run: |
-        githubHeadRef=${{ env.githubHeadRef }}
-        latestDockerTag=""
-        commitDockerTag=""
+      -
+        name: Set github context
+        run: |
+          echo 'githubRepository=${{ fromJSON(inputs.githubContext).repository }}' >> $GITHUB_ENV
+          echo 'githubSha=${{ fromJSON(inputs.githubContext).sha }}' >> $GITHUB_ENV
+          echo 'githubRef=${{ fromJSON(inputs.githubContext).ref }}' >> $GITHUB_ENV
+          echo 'githubHeadRef=${{ fromJSON(inputs.githubContext).head_ref }}' >> $GITHUB_ENV
+          echo 'pullRequestNumber=${{ fromJSON(inputs.githubContext).event.pull_request.number }}' >> $GITHUB_ENV
+      -
+        name: Initialize build info
+        id: initialize
+        run: |
+          githubHeadRef=${{ env.githubHeadRef }}
+          latestDockerTag=""
+          commitDockerTag=""
 
-        # enable case insensitive regex
-        # shopt -s nocasematch
-        # mainPattern='refs\/heads\/(main)'
+          # enable case insensitive regex
+          # shopt -s nocasematch
+          # mainPattern='refs\/heads\/(main)'
 
-        # check if this is a PR or not
-        if [[ $githubHeadRef == "" ]]; then
-          # this run is for the main branch
-          githubRef=${{ env.githubRef }}
-          latestDockerTag="latest"
-          commitDockerTag=${{ env.githubSha }}
-        else
-          # this run is for a PR
-          githubRef=$githubHeadRef
-          latestDockerTag="pull-${{ env.pullRequestNumber }}"
-          commitDockerTag="pull-${{ env.pullRequestNumber }}-${{ env.githubSha }}"
-        fi
+          # check if this is a PR or not
+          if [[ $githubHeadRef == "" ]]; then
+            # this run is for the main branch
+            githubRef=${{ env.githubRef }}
+            latestDockerTag="latest"
+            commitDockerTag=${{ env.githubSha }}
+          else
+            # this run is for a PR
+            githubRef=$githubHeadRef
+            latestDockerTag="pull-${{ env.pullRequestNumber }}"
+            commitDockerTag="pull-${{ env.pullRequestNumber }}-${{ env.githubSha }}"
+          fi
 
-        # get branch name from ref
-        branch=${githubRef##*/}
+          # get branch name from ref
+          branch=${githubRef##*/}
 
-        echo "latestDockerTag=$latestDockerTag" >> $GITHUB_OUTPUT
-        echo "commitDockerTag=$commitDockerTag" >> $GITHUB_OUTPUT
-        echo "branch=$branch" >> $GITHUB_OUTPUT
+          echo "latestDockerTag=$latestDockerTag" >> $GITHUB_OUTPUT
+          echo "commitDockerTag=$commitDockerTag" >> $GITHUB_OUTPUT
+          echo "branch=$branch" >> $GITHUB_OUTPUT
 
   build_app:
     name: Build app
@@ -84,7 +84,7 @@ jobs:
     needs: [ initialize ]
     steps:
       -
-        name: Checkout repository
+        name: Checkout target repository
         uses: actions/checkout@v3
         with:
           repository: ${{ env.githubRepository }}
@@ -108,12 +108,12 @@ jobs:
           echo -e "EXPOSE 80 \n" >> Dockerfile
           echo -e "COPY . ./ \n" >> Dockerfile
           # TODO uncomment
-          echo -e "RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+          echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
           echo -e "-c Release \ " >> Dockerfile
           echo -n "-o /app/publish" >> Dockerfile
 
           if [ "${{ inputs.selfContained }}" = true ] ; then
-            TODO uncomment
+            # TODO uncomment
             echo -e " \ " >> Dockerfile
             echo -e "--self-contained \ " >> Dockerfile
             echo -e "/p:PublishSingleFile=true \ " >> Dockerfile
@@ -122,24 +122,24 @@ jobs:
             # TODO remove this workaround for arm64 after https://github.com/dotnet/installer/pull/14647 is closed
             # echo -e "ARG architecture=\$(dotnet --info | grep 'Architecture: arm64')" >> Dockerfile
             # echo -e "RUN if [[ -z '\$architecture' ]]; then \ " >> Dockerfile
-            # echo -e "dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+            # echo -e "dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
             # echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true --use-current-runtime; \ " >> Dockerfile
             # echo -e "else \ " >> Dockerfile
-            # echo -e "dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+            # echo -e "dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
             # echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true -r linux-musl-arm64; \ " >> Dockerfile
             # echo -e "fi \n" >> Dockerfile
 
             echo -e "FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n" >> Dockerfile
-            entrypoint="ENTRYPOINT ./${{ inputs.appName }}"
+            entrypoint="ENTRYPOINT ./${{ inputs.executableName }}"
           else
             # TODO remove
-            # echo -e "RUN dotnet publish "./${{ inputs.appName }}/${{ inputs.appName }}.csproj" \ " >> Dockerfile
+            # echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
             # echo -e "-c Release \ " >> Dockerfile
             # echo -n "-o /app/publish" >> Dockerfile
 
             echo -e "" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n" >> Dockerfile
-            entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.appName }}.dll\"]"
+            entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.executableName }}.dll\"]"
           fi
 
           echo -e "WORKDIR /app" >> Dockerfile
