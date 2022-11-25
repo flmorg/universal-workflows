@@ -11,6 +11,8 @@ on:
         required: true
       KUBECONFIG:
         required: true
+      SECRETS_TOKEN:
+        required: true
 
 jobs:
   install_chart:
@@ -19,6 +21,7 @@ jobs:
     steps:
       -
         name: Initialize chart info
+        timeout-minutes: 1
         run: |
           # TODO delete branch
           githubRef=${{ fromJSON(inputs.githubContext).head_ref }}
@@ -30,20 +33,48 @@ jobs:
           echo "githubRepositoryName=$githubRepositoryName" >> $GITHUB_ENV
           echo 'githubSha=${{ fromJSON(inputs.githubContext).sha }}' >> $GITHUB_ENV
           echo 'workspace=${{ github.workspace }}' >> $GITHUB_ENV
-      -
-        name: Install helm
+
+
+      - 
+        name: Get secrets
+        id: customSecrets
+        uses: flaminel/secrets-action@v1
+        with:
+          access-token: ${{ secrets.SECRETS_TOKEN }}
+          secrets-names: '{ "names": ["EncryptionKey", "EncryptionIV"] }'
+      - 
+        name: Set secrets
         run: |
-          sudo snap install helm --classic
+          echo -e "1"
+          echo -e $EncryptionKey
+          echo -e "2"
+          echo -e '${{ env.EncryptionKey }}'
       -
         name: Checkout target repository
         uses: actions/checkout@v3
+        timeout-minutes: 1
         with:
           repository: ${{ env.githubRepository }}
           ref: ${{ env.branch }}
           token: ${{ secrets.PAT }}
+      - 
+        name: Replace secrets
+        working-directory: chart
+        timeout-minutes: 1
+        run: |
+          originalfile="values.yaml"
+          tmpfile=$(mktemp)
+          cp --attributes-only --preserve $originalfile $tmpfile
+          cat $originalfile | envsubst > $tmpfile && mv $tmpfile $originalfile
+      - 
+        name: Install helm
+        timeout-minutes: 2
+        run: |
+          sudo snap install helm --classic
       -
         name: Install chart
         working-directory: chart
+        timeout-minutes: 5
         run: |
           touch kubeconfig
           echo '${{ secrets.KUBECONFIG }}' >> kubeconfig
@@ -58,7 +89,8 @@ jobs:
           --create-namespace \
           --wait \
           --version=1.0.0 \
-          --values=./values.yaml
+          --values=./values.yaml \
+          --debug
 
       # TODO future
       # - 
