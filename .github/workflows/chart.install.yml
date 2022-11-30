@@ -6,11 +6,11 @@ on:
       githubContext: # github context in JSON format
         required: true
         type: string
+      useChartMuseum:
+        required: false
+        type: boolean
+        default: true
     secrets:
-      PAT:
-        required: true
-      KUBECONFIG:
-        required: true
       SECRETS_TOKEN:
         required: true
 
@@ -31,24 +31,11 @@ jobs:
           echo "branch=$branch" >> $GITHUB_ENV
           echo 'githubRepository=${{ fromJSON(inputs.githubContext).repository }}' >> $GITHUB_ENV
           echo "githubRepositoryName=$githubRepositoryName" >> $GITHUB_ENV
-          echo 'githubSha=${{ fromJSON(inputs.githubContext).sha }}' >> $GITHUB_ENV
-          echo 'workspace=${{ github.workspace }}' >> $GITHUB_ENV
-
-
       - 
         name: Get secrets
-        id: customSecrets
         uses: flaminel/secrets-action@v1
         with:
           access-token: ${{ secrets.SECRETS_TOKEN }}
-          secrets-names: '{ "names": ["EncryptionKey", "EncryptionIV"] }'
-      - 
-        name: Set secrets
-        run: |
-          echo -e "1"
-          echo -e $EncryptionKey
-          echo -e "2"
-          echo -e '${{ env.EncryptionKey }}'
       -
         name: Checkout target repository
         uses: actions/checkout@v3
@@ -56,9 +43,18 @@ jobs:
         with:
           repository: ${{ env.githubRepository }}
           ref: ${{ env.branch }}
-          token: ${{ secrets.PAT }}
+          token: ${{ env.GitHubReadonlyRepoPAT }}
+      -
+        name: Checkout chart repository
+        if: inputs.useChartMuseum == false
+        uses: actions/checkout@v3
+        timeout-minutes: 1
+        with:
+          repository: Flaminel/universal-chart
+          token: ${{ env.GitHubReadonlyRepoPAT }}
+          path: universal-chart
       - 
-        name: Replace secrets
+        name: Replace secrets in values.yaml
         working-directory: chart
         timeout-minutes: 1
         run: |
@@ -72,38 +68,41 @@ jobs:
         run: |
           sudo snap install helm --classic
       -
-        name: Install chart
+        name: Set KUBECONFIG
+        working-directory: chart
+        timeout-minutes: 1
+        run: |
+          touch kubeconfig
+          echo '${{ env.Kubeconfig }}' >> kubeconfig
+          echo "KUBECONFIG=./kubeconfig" >> $GITHUB_ENV
+      -
+        name: Package chart
+        if: inputs.useChartMuseum == false
+        working-directory: universal-chart/src
+        timeout-minutes: 1
+        run: |
+          helm package . --version 1.0.0 --destination ./../tmp
+          echo 'chartName=${{ github.workspace }}/universal-chart/tmp/universal-chart-1.0.0.tgz' >> $GITHUB_ENV
+      -
+        name: Fetch chart
+        if: inputs.useChartMuseum == true
+        working-directory: chart
+        timeout-minutes: 1
+        run: |
+          helm repo add chartmuseum https://charts.pricegrabber.xyz
+          helm repo update
+          echo "chartName=chartmuseum/universal-chart" >> $GITHUB_ENV
+      -
+        name: Upgrade chart
         working-directory: chart
         timeout-minutes: 5
         run: |
-          touch kubeconfig
-          echo '${{ secrets.KUBECONFIG }}' >> kubeconfig
-          export KUBECONFIG=./kubeconfig
-
-          helm repo add chartmuseum https://charts.pricegrabber.xyz
-          helm repo update
-
-          helm upgrade ${{ env.githubRepositoryName }} chartmuseum/universal-chart \
+          helm upgrade ${{ env.githubRepositoryName }} ${{ env.chartName }} \
+          --kubeconfig ${{ env.KUBECONFIG }} \
           --install \
           --namespace ${{ env.githubRepositoryName }} \
           --create-namespace \
           --wait \
-          --version=1.0.0 \
+          --version=^1.0.0 \
           --values=./values.yaml \
           --debug
-
-      # TODO future
-      # - 
-      #   name: Install chart
-      #   uses: vimeda/helm@v1.6.8
-      #   with:
-      #     release: ${{ env.githubRepositoryName }}
-      #     namespace: production
-      #     version: ${{ env.githubSha }}
-      #     value-files: ${{ env.workspace }}/chart/values.yaml
-      #     chart: chartmuseum/universal-chart
-      #     chart-version: 1.0.0
-      #     repo: https://charts.pricegrabber.xyz
-      #     repo-alias: chartmuseum
-      #   env:
-      #     KUBECONFIG_FILE: '${{ secrets.KUBECONFIG }}'
