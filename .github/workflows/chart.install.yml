@@ -109,5 +109,5 @@ jobs:
           --wait \
           --version=^1.0.0 \
           --values=./values.yaml \
-          --set deployment.forceRedeploy=${{ inputs.forceRedeploy }}
+          --set deployment.forceRedeploy=${{ inputs.forceRedeploy }} \
           --debug
