@@ -10,6 +10,10 @@ on:
         required: false
         type: boolean
         default: true
+      forceRedeploy: # should be set to true after build to redeploy the latest image tag
+        required: false
+        type: boolean
+        default: false
     secrets:
       SECRETS_TOKEN:
         required: true
@@ -105,4 +109,5 @@ jobs:
           --wait \
           --version=^1.0.0 \
           --values=./values.yaml \
+          --set deployment.forceRedeploy=${{ inputs.forceRedeploy }}
           --debug
