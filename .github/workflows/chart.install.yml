@@ -65,7 +65,8 @@ jobs:
           originalfile="values.yaml"
           tmpfile=$(mktemp)
           cp --attributes-only --preserve $originalfile $tmpfile
-          cat $originalfile | envsubst > $tmpfile && mv $tmpfile $originalfile
+          envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < $originalfile > $tmpfile
+          mv $tmpfile $originalfile
       - 
         name: Install helm
         timeout-minutes: 2
