@@ -107,8 +107,8 @@ jobs:
           --install \
           --namespace ${{ env.githubRepositoryName }} \
           --create-namespace \
-          --wait \
           --version=^1.0.0 \
           --values=./values.yaml \
           --set forceRedeploy=${{ inputs.forceRedeploy }} \
           --debug
+          # --wait
