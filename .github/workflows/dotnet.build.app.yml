@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       executableName:
-        required: true
+        required: false
         type: string
         default: Executable
       selfContained:
@@ -24,13 +24,8 @@ on:
         required: true
 
 jobs:
-  initialize:
-    name: Initialize
+  build_app:
     runs-on: ubuntu-latest
-    outputs:
-      latestDockerTag: ${{ steps.initialize.outputs.latestDockerTag }}
-      commitDockerTag: ${{ steps.initialize.outputs.commitDockerTag }}
-      branch: ${{ steps.initialize.outputs.branch }}
     steps:
       -
         name: Set github context
@@ -44,7 +39,6 @@ jobs:
       -
         name: Initialize build info
         timeout-minutes: 1
-        id: initialize
         run: |
           githubHeadRef=${{ env.githubHeadRef }}
           latestDockerTag=""
@@ -70,18 +64,13 @@ jobs:
           # get branch name from ref
           branch=${githubRef##*/}
 
-          echo "latestDockerTag=$latestDockerTag" >> $GITHUB_OUTPUT
-          echo "commitDockerTag=$commitDockerTag" >> $GITHUB_OUTPUT
-          echo "branch=$branch" >> $GITHUB_OUTPUT
-
-  build_app:
-    name: Build app
-    runs-on: ubuntu-latest
-    needs: [ initialize ]
-    steps:
+          echo "latestDockerTag=$latestDockerTag" >> $GITHUB_ENV
+          echo "commitDockerTag=$commitDockerTag" >> $GITHUB_ENV
+          echo "branch=$branch" >> $GITHUB_ENV
       - 
         name: Get secrets
         uses: flaminel/secrets-action@v1
+        timeout-minutes: 1
         with:
           access-token: ${{ secrets.SECRETS_TOKEN }}
       -
@@ -90,7 +79,7 @@ jobs:
         timeout-minutes: 1
         with:
           repository: ${{ env.githubRepository }}
-          ref: ${{ needs.initialize.outputs.branch }}
+          ref: ${{ env.branch }}
           token: ${{ env.GitHubReadonlyRepoPAT }}
       -
         name: Set up QEMU
@@ -193,5 +182,5 @@ jobs:
             linux/arm64
           push: true
           tags: |
-            ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.latestDockerTag }}
-            ${{ inputs.dockerRepository }}:${{ needs.initialize.outputs.commitDockerTag }}
+            ${{ inputs.dockerRepository }}:${{ env.latestDockerTag }}
+            ${{ inputs.dockerRepository }}:${{ env.commitDockerTag }}
