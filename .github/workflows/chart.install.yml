@@ -91,7 +91,7 @@ jobs:
         working-directory: chart
         timeout-minutes: 1
         run: |
-          helm repo add chartmuseum https://charts.pricegrabber.xyz
+          helm repo add chartmuseum https://charts.mariusne.com
           helm repo update
           echo "chartName=chartmuseum/universal-chart" >> $GITHUB_ENV
       -
