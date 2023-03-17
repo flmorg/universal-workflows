@@ -18,7 +18,6 @@ on:
 
 jobs:
   install_chart:
-    name: Install chart
     runs-on: ubuntu-latest
     steps:
       -

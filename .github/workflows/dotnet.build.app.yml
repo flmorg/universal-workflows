@@ -132,6 +132,7 @@ jobs:
           echo -e "WORKDIR /app" >> Dockerfile
           echo -e "EXPOSE 80 \n" >> Dockerfile
           echo -e "COPY . ./ \n" >> Dockerfile
+          echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ env.GitHubPackagesPAT }} --store-password-in-clear-text --name github https://nuget.pkg.github.com/Flaminel/index.json" >> Dockerfile
 
           if [ "${{ inputs.selfContained }}" = true ] ; then
             # TODO remove this workaround for arm64 after https://github.com/dotnet/installer/pull/14647 is closed
@@ -171,7 +172,7 @@ jobs:
       -
         name: Build and push docker image
         timeout-minutes: 15
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: ${{ github.workspace }}/code
           file: ${{ github.workspace }}/code/Dockerfile
