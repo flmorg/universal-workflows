@@ -95,37 +95,6 @@ jobs:
         working-directory: code
         timeout-minutes: 2
         run: |
-          # touch Dockerfile
-
-          # echo -e "FROM mcr.microsoft.com/dotnet/sdk:${{ inputs.baseImage }} AS build" >> Dockerfile
-          # echo -e "WORKDIR /app" >> Dockerfile
-          # echo -e "EXPOSE 80 \n" >> Dockerfile
-          # echo -e "COPY . ./ \n" >> Dockerfile
-          # echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
-          # echo -e "-c Release \ " >> Dockerfile
-          # echo -n "-o /app/publish" >> Dockerfile
-
-          # # TODO selfContained only if main branch
-          # if [ "${{ inputs.selfContained }}" = true ] ; then
-          #   echo -e " \ " >> Dockerfile
-          #   echo -e "--self-contained \ " >> Dockerfile
-          #   echo -e "--use-current-runtime \ " >> Dockerfile
-          #   echo -e "/p:PublishSingleFile=true \ " >> Dockerfile
-          #   echo -e "/p:PublishTrimmed=true \n" >> Dockerfile
-          #   echo -e "FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n" >> Dockerfile
-          #   entrypoint="ENTRYPOINT ./${{ inputs.executableName }}"
-          # else
-          #   echo -e "" >> Dockerfile
-          #   echo -e "FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n" >> Dockerfile
-          #   entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.executableName }}.dll\"]"
-          # fi
-
-          # echo -e "WORKDIR /app" >> Dockerfile
-          # echo -e "COPY --from=build /app/publish ." >> Dockerfile
-          # echo -e "${entrypoint}" >> Dockerfile
-
-          # cat Dockerfile
-
           touch Dockerfile
 
           echo -e "FROM mcr.microsoft.com/dotnet/sdk:${{ inputs.baseImage }} AS build" >> Dockerfile
@@ -133,26 +102,19 @@ jobs:
           echo -e "EXPOSE 80 \n" >> Dockerfile
           echo -e "COPY . ./ \n" >> Dockerfile
           echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ env.GitHubPackagesPAT }} --store-password-in-clear-text --name github https://nuget.pkg.github.com/Flaminel/index.json" >> Dockerfile
+          echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
+          echo -e "-c Release \ " >> Dockerfile
+          echo -n "-o /app/publish" >> Dockerfile
 
           if [ "${{ inputs.selfContained }}" = true ] ; then
-            # TODO remove this workaround for arm64 after https://github.com/dotnet/installer/pull/14647 is closed
-            echo -e "ARG architecture=\$(dotnet --info | grep 'Architecture: arm64')" >> Dockerfile
-            echo -e "RUN if [[ -z '\$architecture' ]]; then \ " >> Dockerfile
-            echo -e "dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
-            echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true --use-current-runtime; \ " >> Dockerfile
-            echo -e "else \ " >> Dockerfile
-            echo -e "dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
-            echo -e "-c Release -o /app/publish --self-contained /p:PublishSingleFile=true /p:PublishTrimmed=true -r linux-musl-arm64; \ " >> Dockerfile
-            echo -e "fi \n" >> Dockerfile
-
+            echo -e " \ " >> Dockerfile
+            echo -e "--self-contained \ " >> Dockerfile
+            echo -e "--use-current-runtime \ " >> Dockerfile
+            # echo -e "/p:PublishTrimmed=true \ " >> Dockerfile
+            echo -e "/p:PublishSingleFile=true \n" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n" >> Dockerfile
             entrypoint="ENTRYPOINT ./${{ inputs.executableName }}"
           else
-            # TODO remove
-            echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
-            echo -e "-c Release \ " >> Dockerfile
-            echo -n "-o /app/publish" >> Dockerfile
-
             echo -e "" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n" >> Dockerfile
             entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.executableName }}.dll\"]"
@@ -178,6 +140,8 @@ jobs:
           file: ${{ github.workspace }}/code/Dockerfile
           labels: |
             commit=sha-${{ env.githubSha }}
+          outputs: |
+            type=image
           platforms: |
             linux/amd64
             linux/arm64
