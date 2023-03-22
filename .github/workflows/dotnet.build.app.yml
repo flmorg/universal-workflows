@@ -18,7 +18,7 @@ on:
       baseImage:
         required: false
         type: string
-        default: 7.0-alpine
+        default: 8.0-preview-alpine
     secrets:
       SECRETS_TOKEN:
         required: true
@@ -82,14 +82,13 @@ jobs:
           ref: ${{ env.branch }}
           token: ${{ env.GitHubReadonlyRepoPAT }}
       -
-        name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        timeout-minutes: 5
-      -
         name: Set up Docker Buildx
-        id: buildx
         uses: docker/setup-buildx-action@v2
         timeout-minutes: 5
+      -
+        name: Install emulators
+        run: |
+          docker run --privileged --rm tonistiigi/binfmt --install all
       -
         name: Create Dockerfile
         working-directory: code
@@ -97,12 +96,15 @@ jobs:
         run: |
           touch Dockerfile
 
-          echo -e "FROM mcr.microsoft.com/dotnet/sdk:${{ inputs.baseImage }} AS build" >> Dockerfile
+          echo -e "FROM --platform=\$BUILDPLATFORM mcr.microsoft.com/dotnet/nightly/sdk:${{ inputs.baseImage }} AS build" >> Dockerfile
+          echo -e "ARG TARGETARCH" >> Dockerfile
           echo -e "WORKDIR /app" >> Dockerfile
           echo -e "EXPOSE 80 \n" >> Dockerfile
           echo -e "COPY . ./ \n" >> Dockerfile
+          echo -e "RUN dotnet nuget add source --name dotnet8 https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet8/nuget/v3/index.json" >> Dockerfile
           echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ env.GitHubPackagesPAT }} --store-password-in-clear-text --name github https://nuget.pkg.github.com/Flaminel/index.json" >> Dockerfile
           echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
+          echo -e "-a \$TARGETARCH \ " >> Dockerfile
           echo -e "-c Release \ " >> Dockerfile
           echo -n "-o /app/publish" >> Dockerfile
 
@@ -110,6 +112,7 @@ jobs:
             echo -e " \ " >> Dockerfile
             echo -e "--self-contained \ " >> Dockerfile
             echo -e "--use-current-runtime \ " >> Dockerfile
+            echo -e "/p:StripSymbols=true \ " >> Dockerfile
             # echo -e "/p:PublishTrimmed=true \ " >> Dockerfile
             echo -e "/p:PublishSingleFile=true \n" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n" >> Dockerfile
