@@ -20,9 +20,6 @@ on:
         required: false
         type: boolean
         default: true
-    secrets:
-      SECRETS_TOKEN:
-        required: true
 
 jobs:
   publish:
@@ -67,18 +64,12 @@ jobs:
         with:
           repository: ${{ env.githubRepository }}
       -
-        name: Get secrets
-        uses: flaminel/secrets-action@v1
-        timeout-minutes: 1
-        with:
-          access-token: ${{ secrets.SECRETS_TOKEN }}
-      -
         name: Set git configuration
         timeout-minutes: 1
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
-          git remote set-url origin https://x-access-token:${{ env.GitHubWritePAT }}@github.com/${{ env.githubRepository }}.git
+          git remote set-url origin https://x-access-token:${{ env.REPO_WRITE_PAT }}@github.com/${{ env.githubRepository }}.git
       -
         name: Setup .NET for version bump
         uses: actions/setup-dotnet@v2
@@ -117,7 +108,7 @@ jobs:
           dotnet-version: ${{ inputs.dotnetVersion }}
           source-url: https://nuget.pkg.github.com/Flaminel/index.json
         env:
-          NUGET_AUTH_TOKEN: ${{ env.GitHubPackagesPAT }}
+          NUGET_AUTH_TOKEN: ${{ env.PACKAGES_PAT }}
       -
         name: Generate package
         timeout-minutes: 2
@@ -131,7 +122,7 @@ jobs:
         timeout-minutes: 1
         working-directory: code/${{ env.githubRepositoryName }}
         run: |
-          dotnet nuget push ./out/*.nupkg --api-key ${{ env.GitHubPackagesPAT }}
+          dotnet nuget push ./out/*.nupkg --api-key ${{ env.PACKAGES_PAT }}
       -
         name: Commit and push version bump
         timeout-minutes: 1
