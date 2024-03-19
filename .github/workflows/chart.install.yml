@@ -12,9 +12,6 @@ on:
         required: false
         type: boolean
         default: false
-    secrets:
-      SECRETS_TOKEN:
-        required: true
 
 jobs:
   install_chart:
@@ -31,51 +28,46 @@ jobs:
           echo "branch=$branch" >> $GITHUB_ENV
           echo 'githubRepository=${{ fromJSON(inputs.githubContext).repository }}' >> $GITHUB_ENV
           echo "githubRepositoryName=$githubRepositoryName" >> $GITHUB_ENV
-      - 
-        name: Get secrets
-        uses: flaminel/secrets-action@v1
-        with:
-          access-token: ${{ secrets.SECRETS_TOKEN }}
       -
         name: Checkout target repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         timeout-minutes: 1
         with:
           repository: ${{ env.githubRepository }}
           ref: ${{ env.branch }}
-          token: ${{ env.GitHubReadonlyRepoPAT }}
+          token: ${{ secrets.REPO_READONLY_PAT }}
       -
         name: Checkout chart repository
         if: inputs.useChartMuseum == false
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         timeout-minutes: 1
         with:
-          repository: Flaminel/universal-chart
-          token: ${{ env.GitHubReadonlyRepoPAT }}
+          repository: flmorg/universal-chart
+          token: ${{ secrets.REPO_READONLY_PAT }}
           path: universal-chart
-      - 
-        name: Replace secrets in values.yaml
-        working-directory: chart
-        timeout-minutes: 1
-        run: |
-          originalfile="values.yaml"
-          tmpfile=$(mktemp)
-          cp --attributes-only --preserve $originalfile $tmpfile
-          envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < $originalfile > $tmpfile
-          mv $tmpfile $originalfile
+      # - 
+      #   name: Replace secrets in values.yaml
+      #   working-directory: chart
+      #   timeout-minutes: 1
+      #   run: |
+      #     originalfile="values.yaml"
+      #     tmpfile=$(mktemp)
+      #     cp --attributes-only --preserve $originalfile $tmpfile
+      #     envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < $originalfile > $tmpfile
+      #     mv $tmpfile $originalfile
       - 
         name: Install helm
         timeout-minutes: 2
         run: |
           sudo snap install helm --classic
-      -
-        name: Set KUBECONFIG
-        working-directory: chart
-        timeout-minutes: 1
-        run: |
-          touch kubeconfig
-          echo '${{ env.Kubeconfig }}' >> kubeconfig
-          echo "KUBECONFIG=./kubeconfig" >> $GITHUB_ENV
+      # -
+      #   name: Set KUBECONFIG
+      #   working-directory: chart
+      #   timeout-minutes: 1
+      #   run: |
+      #     touch kubeconfig
+      #     echo '${{ secrets.KUBECONFIG }}' >> kubeconfig
+      #     echo "KUBECONFIG=./kubeconfig" >> $GITHUB_ENV
       -
         name: Package chart
         if: inputs.useChartMuseum == false
@@ -93,13 +85,21 @@ jobs:
           helm repo add chartmuseum https://charts.mariusne.com
           helm repo update
           echo "chartName=chartmuseum/universal-chart" >> $GITHUB_ENV
+      - name: Create kubeconfig
+        id: kubeconfig
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: './kubeconfig'
+          encodedString: ${{ secrets.KUBECONFIG }}
       -
         name: Upgrade chart
         working-directory: chart
         timeout-minutes: 5
+        env:
+          KUBECONFIG: ${{ steps.kubeconfig.outputs.filePath }}
         run: |
           helm upgrade ${{ env.githubRepositoryName }} ${{ env.chartName }} \
-          --kubeconfig ${{ env.KUBECONFIG }} \
+          --kubeconfig $KUBECONFIG \
           --install \
           --namespace ${{ env.githubRepositoryName }} \
           --create-namespace \
