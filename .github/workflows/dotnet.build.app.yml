@@ -119,7 +119,7 @@ jobs:
             # echo -e "/p:PublishTrimmed=true \ " >> Dockerfile
             echo -e "/p:PublishSingleFile=true \n" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n" >> Dockerfile
-            entrypoint="ENTRYPOINT ./${{ inputs.executableName }}"
+            entrypoint="ENTRYPOINT [\"./${{ inputs.executableName }}\"]"
           else
             echo -e "" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n" >> Dockerfile
