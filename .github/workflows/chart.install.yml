@@ -14,9 +14,11 @@ on:
         required: true
         type: string
       valuesPath:
-        required: false
+        required: true
         type: string
-        default: chart/values-external.yaml
+      releaseName:
+        required: true
+        type: string
 
 jobs:
   install_chart:
@@ -70,7 +72,7 @@ jobs:
             chart_ref="chart/${{ inputs.chartName }}"
           fi
       
-          helm upgrade ${{ env.githubRepositoryName }} "$chart_ref" \
+          helm upgrade ${{ env.githubRepositoryName }}-${{ inputs.releaseName }} "$chart_ref" \
             --kubeconfig $KUBECONFIG \
             --install \
             --namespace ${{ env.githubRepositoryName }} \
