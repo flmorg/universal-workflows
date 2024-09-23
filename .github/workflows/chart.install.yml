@@ -60,13 +60,21 @@ jobs:
         env:
           KUBECONFIG: ${{ steps.kubeconfig.outputs.filePath }}
         run: |
-          helm repo add chart ${{ inputs.chartRepo }}
-          helm repo update
-          helm upgrade ${{ env.githubRepositoryName }} chart/${{ inputs.chartName }} \
-          --kubeconfig $KUBECONFIG \
-          --install \
-          --namespace ${{ env.githubRepositoryName }} \
-          --create-namespace \
-          --version=${{ inputs.version }} \
-          --values=${{ inputs.valuesPath }} \
-          --debug
+          if [[ "${{ inputs.chartRepo }}" == oci://* ]]; then
+            # Upgrade using the OCI repository
+            chart_ref="${{ inputs.chartRepo }}/${{ inputs.chartName }}"
+          else
+            # Add the Helm repository and use the traditional chart reference
+            helm repo add chart ${{ inputs.chartRepo }}
+            helm repo update
+            chart_ref="chart/${{ inputs.chartName }}"
+          fi
+      
+          helm upgrade ${{ env.githubRepositoryName }} "$chart_ref" \
+            --kubeconfig $KUBECONFIG \
+            --install \
+            --namespace ${{ env.githubRepositoryName }} \
+            --create-namespace \
+            --version=${{ inputs.version }} \
+            --values=${{ inputs.valuesPath }} \
+            --debug
