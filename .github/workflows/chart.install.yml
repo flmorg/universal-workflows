@@ -43,12 +43,41 @@ jobs:
           repository: ${{ env.githubRepository }}
           ref: ${{ env.branch }}
           token: ${{ secrets.REPO_READONLY_PAT }}
-      - 
+      -
+        name: Find vault secrets
+        timeout-minutes: 2
+        run: |
+          # find all "@vault(path/to/secret key | ENV_VAR_KEY)" templates and output them as list of "path/to/secret key | ENV_VAR_KEY;"
+          VAULT_SECRETS=$(grep -oP '@vault\([^)]+\)' ${{ inputs.valuesPath }} | sed 's/@vault(//;s/)//' | awk -F'/' '{print $1"/"$2"/"$3" "$4}' | sed 's/ |/ |/' | tr '\n' ';')
+          echo "VAULT_SECRETS=$VAULT_SECRETS" >> $GITHUB_ENV
+          
+          # replace all "@vault(path/to/secret key | ENV_VAR_KEY)" with their env var key
+          sed -i.bak -E 's/@vault\(([^|]+) \| ([^)]+)\)/$\2/g' ${{ inputs.valuesPath }}
+      -
+        name: Retrieve vault secrets
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ secrets.VAULT_HOST }}
+          method: approle
+          roleId: ${{ secrets.VAULT_ROLE_ID }}
+          secretId: ${{ secrets.VAULT_SECRET_ID }}
+          secrets:
+            ${{ env.VAULT_SECRETS }}
+      -
+        name: Replace secrets in values file
+        timeout-minutes: 1
+        run: |
+          originalfile="${{ inputs.valuesPath }}"
+          tmpfile=$(mktemp)
+          cp --preserve=mode,ownership,timestamps $originalfile $tmpfile
+          envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < $originalfile > $tmpfile
+          mv $tmpfile $originalfile
+      -
         name: Install helm
         timeout-minutes: 2
         run: |
           sudo snap install helm --classic
-      - 
+      -
         name: Create kubeconfig
         id: kubeconfig
         uses: timheuer/base64-to-file@v1.2
