@@ -108,5 +108,4 @@ jobs:
             --create-namespace \
             --version=${{ inputs.version }} \
             --values=${{ inputs.valuesPath }} \
-            --atomic \
             --debug 
