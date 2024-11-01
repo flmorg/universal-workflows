@@ -76,7 +76,7 @@ jobs:
         name: Install helm
         timeout-minutes: 2
         run: |
-          sudo snap install helm --classic
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
       -
         name: Create kubeconfig
         id: kubeconfig
