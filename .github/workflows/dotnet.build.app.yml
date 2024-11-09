@@ -18,7 +18,7 @@ on:
       baseImage:
         required: false
         type: string
-        default: 9.0-alpine
+        default: 8.0-alpine
 
 jobs:
   build_app:
@@ -99,13 +99,13 @@ jobs:
         run: |
           touch Dockerfile
 
-          echo -e "FROM --platform=\$BUILDPLATFORM mcr.microsoft.com/dotnet/nightly/sdk:${{ inputs.baseImage }} AS build" >> Dockerfile
+          echo -e "FROM --platform=\$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${{ inputs.baseImage }} AS build" >> Dockerfile
           echo -e "ARG TARGETARCH" >> Dockerfile
           echo -e "WORKDIR /app" >> Dockerfile
           echo -e "EXPOSE 8080 \n" >> Dockerfile
           echo -e "COPY . ./ \n" >> Dockerfile
-          echo -e "RUN dotnet nuget add source --name dotnet9 https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet9/nuget/v3/index.json" >> Dockerfile
-          echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ secrets.PACKAGES_PAT }} --store-password-in-clear-text --name github https://nuget.pkg.github.com/Flaminel/index.json" >> Dockerfile
+          # echo -e "RUN dotnet nuget add source --name dotnet8 https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet8/nuget/v3/index.json" >> Dockerfile
+          # echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ secrets.PACKAGES_PAT }} --store-password-in-clear-text --name github https://nuget.pkg.github.com/Flaminel/index.json" >> Dockerfile
           echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
           echo -e "-a \$TARGETARCH \ " >> Dockerfile
           echo -e "-c Release \ " >> Dockerfile
