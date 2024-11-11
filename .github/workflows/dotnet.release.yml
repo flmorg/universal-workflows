@@ -31,8 +31,8 @@ jobs:
 
           echo 'githubRepository=${{ fromJSON(inputs.githubContext).repository }}' >> $GITHUB_ENV
           echo "githubRepositoryName=${repoFullName#*/}" >> $GITHUB_ENV
-          echo "releaseVersion=$releaseVersion"
-          echo "appVersion=$appVersion"
+          echo "releaseVersion=$releaseVersion" >> $GITHUB_ENV
+          echo "appVersion=$appVersion" >> $GITHUB_ENV
 
       - name: Get vault secrets
         uses: hashicorp/vault-action@v2
@@ -70,27 +70,27 @@ jobs:
       - name: Build osx-arm64
         run: dotnet publish code/${{ inputs.executableName }}/${{ inputs.executableName }}.csproj -c Release --runtime osx-arm64 --self-contained -o artifacts/${{ env.githubRepositoryName }}-osx-arm64 /p:PublishSingleFile=true /p:AssemblyVersion=${{ env.appVersion }}
 
-      - name: Zip the Windows x64 release
+      - name: Zip win-x64
         run: |
           cd ./artifacts
           zip ./${{ env.githubRepositoryName }}-win-amd64.zip ./${{ env.githubRepositoryName }}-win-amd64/${{ env.githubRepositoryName }}.exe ./${{ env.githubRepositoryName }}-win-amd64/appsettings.json
 
-      - name: Zip the Linux x64 release
+      - name: Zip linux-x64
         run: |
           cd ./artifacts
           zip ./${{ env.githubRepositoryName }}-linux-amd64.zip /${{ env.githubRepositoryName }}-linux-amd64/${{ env.githubRepositoryName }} ./${{ env.githubRepositoryName }}-linux-amd64/appsettings.json
 
-      - name: Zip the Linux arm64 release
+      - name: Zip linux-arm64
         run: |
           cd ./artifacts
           zip ./${{ env.githubRepositoryName }}-linux-arm64.zip ./${{ env.githubRepositoryName }}-linux-arm64/${{ env.githubRepositoryName }} ./${{ env.githubRepositoryName }}-linux-arm64/appsettings.json
 
-      - name: Zip the OSX x64 release
+      - name: Zip osx-x64
         run: |
           cd ./artifacts
           zip ./${{ env.githubRepositoryName }}-osx-amd64.zip ./${{ env.githubRepositoryName }}-osx-amd64/${{ env.githubRepositoryName }} ./${{ env.githubRepositoryName }}-osx-amd64/appsettings.json
 
-      - name: Zip the OSX arm64 release
+      - name: Zip osx-arm64
         run: |
           cd ./artifacts
           zip ./${{ env.githubRepositoryName }}-osx-arm64.zip ./${{ env.githubRepositoryName }}-osx-arm64/${{ env.githubRepositoryName }} ./${{ env.githubRepositoryName }}-osx-arm64/appsettings.json
@@ -107,8 +107,8 @@ jobs:
           fail_on_unmatched_files: true
           target_commitish: main
           files: |
-           ./artifacts/${{ env.githubRepositoryName }}-win-amd64.zip
-           ./artifacts/${{ env.githubRepositoryName }}-linux-amd64.zip
-           ./artifacts/${{ env.githubRepositoryName }}-linux-arm64.zip
-           ./artifacts/${{ env.githubRepositoryName }}-osx-amd64.zip
-           ./artifacts/${{ env.githubRepositoryName }}-osx-arm64.zip
+            ./artifacts/${{ env.githubRepositoryName }}-win-amd64.zip
+            ./artifacts/${{ env.githubRepositoryName }}-linux-amd64.zip
+            ./artifacts/${{ env.githubRepositoryName }}-linux-arm64.zip
+            ./artifacts/${{ env.githubRepositoryName }}-osx-amd64.zip
+            ./artifacts/${{ env.githubRepositoryName }}-osx-arm64.zip
