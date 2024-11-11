@@ -78,7 +78,7 @@ jobs:
       - name: Zip linux-x64
         run: |
           cd ./artifacts
-          zip ./${{ env.githubRepositoryName }}-linux-amd64.zip /${{ env.githubRepositoryName }}-linux-amd64/${{ env.githubRepositoryName }} ./${{ env.githubRepositoryName }}-linux-amd64/appsettings.json
+          zip ./${{ env.githubRepositoryName }}-linux-amd64.zip ./${{ env.githubRepositoryName }}-linux-amd64/${{ env.githubRepositoryName }} ./${{ env.githubRepositoryName }}-linux-amd64/appsettings.json
 
       - name: Zip linux-arm64
         run: |
