@@ -11,6 +11,10 @@ on:
         required: false
         type: string
         default: Executable
+      outputName:
+        required: false
+        type: string
+        default: Executable
       selfContained:
         required: false
         type: boolean
@@ -119,11 +123,11 @@ jobs:
             # echo -e "/p:PublishTrimmed=true \ " >> Dockerfile
             echo -e "/p:PublishSingleFile=true \n" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/runtime-deps:${{ inputs.baseImage }} \n" >> Dockerfile
-            entrypoint="ENTRYPOINT [\"./${{ inputs.executableName }}\"]"
+            entrypoint="ENTRYPOINT [\"./${{ inputs.outputName }}\"]"
           else
             echo -e "" >> Dockerfile
             echo -e "FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n" >> Dockerfile
-            entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.executableName }}.dll\"]"
+            entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.outputName }}.dll\"]"
           fi
 
           echo -e "WORKDIR /app" >> Dockerfile
