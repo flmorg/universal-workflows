@@ -47,7 +47,7 @@ jobs:
 
           if [[ "$githubRef" =~ ^"refs/tags/" ]]; then
             branch=${githubRef##*/}
-            latestDockerTag="latest"
+            #latestDockerTag="latest"
             versionDockerTag=${branch#v}
             commitDockerTag="${branch#v}-${{ env.githubSha }}"
           else
@@ -66,15 +66,17 @@ jobs:
             fi
           fi
 
-          dockerTags="${{ inputs.dockerRepository }}:$latestDockerTag,${{ inputs.dockerRepository }}:$commitDockerTag"
+          dockerTags="${{ inputs.dockerRepository }}:$commitDockerTag"
+
+          if [ -n "$latestDockerTag" ]; then
+            dockerTags="$dockerTags,${{ inputs.dockerRepository }}:$latestDockerTag"
+          fi
+
           if [ -n "$versionDockerTag" ]; then
             dockerTags="$dockerTags,${{ inputs.dockerRepository }}:$versionDockerTag"
           fi
 
           # set env vars
-          echo "latestDockerTag=$latestDockerTag" >> $GITHUB_ENV
-          echo "commitDockerTag=$commitDockerTag" >> $GITHUB_ENV
-          echo "versionDockerTag=$versionDockerTag" >> $GITHUB_ENV
           echo "branch=$branch" >> $GITHUB_ENV
           echo "dockerTags=$dockerTags" >> $GITHUB_ENV
 
