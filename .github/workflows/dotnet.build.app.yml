@@ -47,7 +47,7 @@ jobs:
 
           if [[ "$githubRef" =~ ^"refs/tags/" ]]; then
             branch=${githubRef##*/}
-            #latestDockerTag="latest"
+            latestDockerTag="latest"
             versionDockerTag=${branch#v}
             commitDockerTag="${branch#v}-${{ env.githubSha }}"
           else
