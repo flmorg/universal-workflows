@@ -90,7 +90,8 @@ jobs:
           secrets:
             secrets/data/docker username | DOCKER_USERNAME;
             secrets/data/docker password | DOCKER_PASSWORD;
-            secrets/data/github repo_readonly_pat | REPO_READONLY_PAT
+            secrets/data/github repo_readonly_pat | REPO_READONLY_PAT;
+            secrets/data/github packages_pat | PACKAGES_PAT
 
       - name: Checkout target repository
         uses: actions/checkout@v4
@@ -120,7 +121,8 @@ jobs:
           echo -e "EXPOSE 8080 \n" >> Dockerfile
           echo -e "COPY . ./ \n" >> Dockerfile
           # echo -e "RUN dotnet nuget add source --name dotnet8 https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet8/nuget/v3/index.json" >> Dockerfile
-          # echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ secrets.PACKAGES_PAT }} --store-password-in-clear-text --name github https://nuget.pkg.github.com/Flaminel/index.json" >> Dockerfile
+          echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ secrets.PACKAGES_PAT }} --store-password-in-clear-text --name flm https://nuget.pkg.github.com/Flaminel/index.json" >> Dockerfile
+          echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ secrets.PACKAGES_PAT }} --store-password-in-clear-text --name flmorg https://nuget.pkg.github.com/flmorg/index.json" >> Dockerfile
           echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
           echo -e "-a \$TARGETARCH \ " >> Dockerfile
           echo -e "-c Release \ " >> Dockerfile
