@@ -66,7 +66,7 @@ jobs:
             fi
           fi
 
-          dockerTags="${{ inputs.dockerRepository }}:$commitDockerTag"
+          dockerTags=""
 
           if [ -n "$latestDockerTag" ]; then
             dockerTags="$dockerTags,${{ inputs.dockerRepository }}:$latestDockerTag"
