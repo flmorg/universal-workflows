@@ -22,7 +22,7 @@ on:
       baseImage:
         required: false
         type: string
-        default: 8.0-alpine
+        default: 9.0-alpine
 
 jobs:
   build_app:
