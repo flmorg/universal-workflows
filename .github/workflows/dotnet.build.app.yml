@@ -42,27 +42,23 @@ jobs:
         run: |
           githubHeadRef=${{ env.githubHeadRef }}
           latestDockerTag=""
-          commitDockerTag=""
           versionDockerTag=""
 
           if [[ "$githubRef" =~ ^"refs/tags/" ]]; then
             branch=${githubRef##*/}
             latestDockerTag="latest"
             versionDockerTag=${branch#v}
-            commitDockerTag="${branch#v}-${{ env.githubSha }}"
           else
             # Determine if this run is for the main branch or another branch
             if [[ -z "$githubHeadRef" ]]; then
               # Main branch
               githubRef=${{ env.githubRef }}
               branch=${githubRef##*/}
-              latestDockerTag="$branch"
-              commitDockerTag="$branch-${{ env.githubSha }}"
+              versionDockerTag="$branch"
             else
               # Pull request
               branch=$githubHeadRef
-              latestDockerTag="$branch"
-              commitDockerTag="$branch-${{ env.githubSha }}"
+              versionDockerTag="$branch"
             fi
           fi
 
@@ -83,6 +79,7 @@ jobs:
           echo "branch=$branch" >> $GITHUB_ENV
           echo "dockerTags=$dockerTags" >> $GITHUB_ENV
           echo "githubTags=$githubTags" >> $GITHUB_ENV
+          echo "versionDockerTag=$versionDockerTag" >> $GITHUB_ENV
 
       - name: Get vault secrets
         uses: hashicorp/vault-action@v2
@@ -174,6 +171,7 @@ jobs:
           provenance: false
           labels: |
             commit=sha-${{ env.githubSha }}
+            version=${{ env.versionDockerTag }}
           outputs: |
             type=image
           platforms: |
