@@ -179,5 +179,4 @@ jobs:
             linux/arm64
           push: true
           tags: |
-            ${{ env.dockerTags }}
             ${{ env.githubTags }}
