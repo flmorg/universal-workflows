@@ -11,7 +11,6 @@ on:
         type: string
         default: Executable
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -52,6 +51,11 @@ jobs:
           repository: ${{ env.githubRepository }}
           ref: main
           token: ${{ env.REPO_READONLY_PAT }}
+
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
       
       - name: Install dependencies
         run: |
