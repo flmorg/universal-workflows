@@ -25,7 +25,8 @@ jobs:
       - name: Set variables
         run: |
           repoFullName=${{ fromJSON(inputs.githubContext).repository }}
-          releaseVersion=${${{ fromJSON(inputs.githubContext).ref }}##*/}
+          ref=${{ fromJSON(inputs.githubContext).ref }}
+          releaseVersion=${ref##refs/tags/}
           appVersion=${releaseVersion#v}
 
           echo 'githubRepository=${{ fromJSON(inputs.githubContext).repository }}' >> $GITHUB_ENV
