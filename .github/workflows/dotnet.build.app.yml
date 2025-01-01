@@ -43,11 +43,13 @@ jobs:
           githubHeadRef=${{ env.githubHeadRef }}
           latestDockerTag=""
           versionDockerTag=""
+          version="0.0.1"
 
           if [[ "$githubRef" =~ ^"refs/tags/" ]]; then
             branch=${githubRef##*/}
             latestDockerTag="latest"
             versionDockerTag=${branch#v}
+            version=${branch#v}
           else
             # Determine if this run is for the main branch or another branch
             if [[ -z "$githubHeadRef" ]]; then
@@ -80,6 +82,7 @@ jobs:
           echo "dockerTags=$dockerTags" >> $GITHUB_ENV
           echo "githubTags=$githubTags" >> $GITHUB_ENV
           echo "versionDockerTag=$versionDockerTag" >> $GITHUB_ENV
+          echo "version=$version" >> $GITHUB_ENV
 
       - name: Get vault secrets
         uses: hashicorp/vault-action@v2
@@ -126,7 +129,8 @@ jobs:
           echo -e "RUN dotnet publish "./${{ inputs.executableName }}/${{ inputs.executableName }}.csproj" \ " >> Dockerfile
           echo -e "-a \$TARGETARCH \ " >> Dockerfile
           echo -e "-c Release \ " >> Dockerfile
-          echo -n "-o /app/publish" >> Dockerfile
+          echo -e "-o /app/publish \ " >> Dockerfile
+          echo -n "/p:Version=${{ env.version }}" >> Dockerfile
 
           if [ "${{ inputs.selfContained }}" = true ] ; then
             echo -e " \ " >> Dockerfile
