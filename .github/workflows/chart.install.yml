@@ -17,7 +17,7 @@ on:
         required: true
         type: string
       releaseName:
-        required: true
+        required: false
         type: string
 
 jobs:
@@ -100,12 +100,17 @@ jobs:
             helm repo update
             chart_ref="chart/${{ inputs.chartName }}"
           fi
-      
-          helm upgrade ${{ env.githubRepositoryName }}-${{ inputs.releaseName }} "$chart_ref" \
+
+          RELEASE_NAME="${{ env.githubRepositoryName }}"
+          if [ -n "${{ inputs.releaseName }}" ]; then
+            RELEASE_NAME="$RELEASE_NAME-${{ inputs.releaseName }}"
+          fi
+
+          helm upgrade "$RELEASE_NAME" "$chart_ref" \
             --kubeconfig $KUBECONFIG \
             --install \
             --namespace ${{ env.githubRepositoryName }} \
             --create-namespace \
             --version=${{ inputs.version }} \
             --values=${{ inputs.valuesPath }} \
-            --debug 
+            --debug
