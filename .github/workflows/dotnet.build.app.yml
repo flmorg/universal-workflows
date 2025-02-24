@@ -121,8 +121,9 @@ jobs:
           echo -e "FROM --platform=\$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${{ inputs.baseImage }} AS build" >> Dockerfile
           echo -e "ARG TARGETARCH" >> Dockerfile
           echo -e "WORKDIR /app" >> Dockerfile
-          echo -e "EXPOSE 8080 \n" >> Dockerfile
+          echo -e "EXPOSE 8080" >> Dockerfile
           echo -e "COPY . ./ \n" >> Dockerfile
+
           # echo -e "RUN dotnet nuget add source --name dotnet8 https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet8/nuget/v3/index.json" >> Dockerfile
           echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ secrets.PACKAGES_PAT }} --store-password-in-clear-text --name flm https://nuget.pkg.github.com/Flaminel/index.json" >> Dockerfile
           echo -e "RUN dotnet nuget add source --username Flaminel --password ${{ secrets.PACKAGES_PAT }} --store-password-in-clear-text --name flmorg https://nuget.pkg.github.com/flmorg/index.json" >> Dockerfile
@@ -146,6 +147,15 @@ jobs:
             echo -e "FROM mcr.microsoft.com/dotnet/aspnet:${{ inputs.baseImage }} \n" >> Dockerfile
             entrypoint="ENTRYPOINT [\"dotnet\", \"${{ inputs.outputName }}.dll\"]"
           fi
+
+          # add timezone data
+          if [[ "${{ inputs.baseImage }}" == *"alpine"* ]]; then
+            echo -e "RUN apk add --no-cache tzdata" >> Dockerfile
+          else
+            echo -e "RUN apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*" >> Dockerfile
+          fi
+
+          echo -e "ENV TZ=Etc/UTC" >> Dockerfile
 
           echo -e "WORKDIR /app" >> Dockerfile
           echo -e "COPY --from=build /app/publish ." >> Dockerfile
