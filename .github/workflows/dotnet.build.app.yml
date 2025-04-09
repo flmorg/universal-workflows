@@ -157,6 +157,9 @@ jobs:
 
           echo -e "ENV TZ=Etc/UTC" >> Dockerfile
 
+          # fix FileSystemWatcher in Docker: https://github.com/dotnet/dotnet-docker/issues/3546
+          echo -e "ENV DOTNET_USE_POLLING_FILE_WATCHER=true" >> Dockerfile
+
           echo -e "WORKDIR /app" >> Dockerfile
           echo -e "COPY --from=build /app/publish ." >> Dockerfile
           echo -e "${entrypoint}" >> Dockerfile
